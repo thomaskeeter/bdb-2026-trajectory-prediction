@@ -1,0 +1,36 @@
+# Data (large, downloaded from Kaggle — not tracked)
+data/
+
+# Python virtual environment
+venv/
+.venv/
+
+# Python cache/build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Model checkpoints / logs (once training starts)
+*.pt
+*.pth
+*.ckpt
+runs/
+lightning_logs/
