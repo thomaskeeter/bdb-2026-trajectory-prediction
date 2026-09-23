@@ -120,9 +120,13 @@ def normalize_example(ex: dict, stats: dict) -> dict:
 
 
 def denormalize_xy(xy_norm: torch.Tensor, stats: dict) -> torch.Tensor:
-    """(..., 2) normalized [x, y] -> mirrored-frame yards. float64 to keep roundoff tiny."""
-    mean = stats["self_mean"][:2].double()
-    std = stats["self_std"][:2].double()
+    """(..., 2) normalized [x, y] -> mirrored-frame yards. float64 to keep roundoff tiny.
+
+    stats always lives on CPU (loaded once via torch.load); moved to xy_norm's
+    device here so this works whether xy_norm is a CPU or a CUDA tensor.
+    """
+    mean = stats["self_mean"][:2].double().to(xy_norm.device)
+    std = stats["self_std"][:2].double().to(xy_norm.device)
     return xy_norm.double() * std + mean
 
 
