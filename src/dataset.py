@@ -15,18 +15,26 @@ from pathlib import Path
 import torch
 from torch.utils.data import Dataset
 
+from normalization import normalize_example
+
 ALL_WEEKS = [f"{w:02d}" for w in range(1, 19)]
 
 
 class BDBTrajectoryDataset(Dataset):
-    def __init__(self, processed_dir: str = "data/processed", split: str = "train", weeks=None):
+    def __init__(self, processed_dir: str = "data/processed", split: str = "train", weeks=None,
+                 norm_stats=None):
         """
         split: "train", "val", or "all" (skip split filtering entirely)
         weeks: optional explicit list of week strings (e.g. ["01","02"]) to load,
                instead of all 18 -- mainly useful for quick smoke tests.
+        norm_stats: dict from normalization.compute_norm_stats (computed on the
+               TRAIN split only). If given, __getitem__ returns z-scored features
+               and targets; if None, raw values are returned (this is how the
+               stats themselves get computed). Use the same train stats for val.
         """
         self.processed_dir = Path(processed_dir)
         self.split = split
+        self.norm_stats = norm_stats
         weeks = weeks if weeks is not None else ALL_WEEKS
 
         self._by_key = {}
@@ -61,9 +69,12 @@ class BDBTrajectoryDataset(Dataset):
     def __getitem__(self, idx: int) -> dict:
         key = self._keys[idx]
         ex = self._by_key[key]
-        # Return as-is: self_seq/context_seq/context_mask/static_feats/target_seq
-        # are already torch tensors; input_len/output_len are plain ints.
+        # self_seq/context_seq/context_mask/static_feats/target_seq are torch tensors;
+        # input_len/output_len are plain ints; is_left is a bool (not a model input --
+        # it's what lets a prediction be mapped back to real field coordinates).
         # Padding to a common batch shape happens later, in collate_fn -- not here.
+        if self.norm_stats is not None:
+            return normalize_example(ex, self.norm_stats)
         return ex
 
     def get_lengths(self):

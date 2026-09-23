@@ -29,6 +29,7 @@ def collate_fn(batch: list[dict]) -> dict:
     output_mask = torch.zeros(B, T_out, dtype=torch.bool)
     input_lengths = torch.zeros(B, dtype=torch.long)
     output_lengths = torch.zeros(B, dtype=torch.long)
+    is_left = torch.tensor([ex["is_left"] for ex in batch], dtype=torch.bool)
 
     for i, ex in enumerate(batch):
         L_in, L_out = ex["input_len"], ex["output_len"]
@@ -50,6 +51,7 @@ def collate_fn(batch: list[dict]) -> dict:
         "output_mask": output_mask,         # (B, T_out) bool -- True = real frame, use in loss
         "input_lengths": input_lengths,     # (B,) for pack_padded_sequence
         "output_lengths": output_lengths,   # (B,)
+        "is_left": is_left,                 # (B,) bool -- NOT a model input; used to un-mirror predictions
         "game_id": [ex["game_id"] for ex in batch],
         "play_id": [ex["play_id"] for ex in batch],
         "nfl_id": [ex["nfl_id"] for ex in batch],

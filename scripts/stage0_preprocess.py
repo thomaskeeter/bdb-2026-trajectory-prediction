@@ -11,6 +11,8 @@ player with player_to_predict == True builds a fixed-schema example:
   target_seq    (output_len, 2)            [x_std, y] labels, post-throw
   input_len     int                        real (post-cap) input length
   output_len    int                        real output length (== num_frames_output)
+  is_left       bool                       True if play_direction == 'left' (x was mirrored);
+                                           needed to un-mirror predictions, not a model input
 
 Coordinate standardization: every x-coordinate (player x, ball_land_x,
 absolute_yardline_number) is mirrored so the offense always drives in the +x
@@ -202,6 +204,9 @@ def build_examples(inp: pd.DataFrame, out: pd.DataFrame, week: int):
                     "nfl_id": int(target_id),
                     "week": week,
                     "split": "val" if week in VAL_WEEKS else "train",
+                    # play_direction == 'left' -> x was mirrored (x_std = 120 - x). Not a model
+                    # input; kept so predictions can be mapped back to real field coordinates.
+                    "is_left": bool(is_left),
                     "self_seq": torch.from_numpy(self_seq),
                     "context_seq": torch.from_numpy(context_seq),
                     "context_mask": torch.from_numpy(context_mask),
@@ -290,7 +295,7 @@ def main_all_weeks(data_dir: str = "data/train", out_dir: str = "data/processed"
         for e in examples:
             all_index_rows.append({
                 "game_id": e["game_id"], "play_id": e["play_id"], "nfl_id": e["nfl_id"],
-                "week": e["week"], "split": e["split"],
+                "week": e["week"], "split": e["split"], "is_left": e["is_left"],
                 "input_len": e["input_len"], "output_len": e["output_len"],
             })
 
