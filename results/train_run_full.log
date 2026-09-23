@@ -1,0 +1,16 @@
+config: {'batch_size': 128, 'lr': 0.001, 'grad_clip': 5.0, 'max_epochs': 40, 'patience': 5, 'hidden_size': 128, 'num_layers': 2, 'seed': 42}
+device: cuda (NVIDIA GeForce RTX 4070 Laptop GPU)
+train: 41,007 examples (321 batches)  val: 5,038 examples (40 batches)
+epoch   1/40  train 3.2582  val_tf 1.8396  val_free 1.9108  *improved*  [41.7s]
+epoch   2/40  train 1.5392  val_tf 1.0040  val_free 1.0748  *improved*  [47.5s]
+epoch   3/40  train 1.2199  val_tf 0.8808  val_free 0.9552  *improved*  [48.9s]
+epoch   4/40  train 1.0144  val_tf 0.8101  val_free 0.8830  *improved*  [48.4s]
+epoch   5/40  train 0.9164  val_tf 0.7380  val_free 0.8249  *improved*  [49.0s]
+epoch   6/40  train 0.8723  val_tf 0.9993  val_free 1.2278  no improve (1/5)  [48.2s]
+epoch   7/40  train 0.8295  val_tf 0.7097  val_free 0.8719  no improve (2/5)  [52.6s]
+epoch   8/40  train 0.8539  val_tf 0.6576  val_free 0.8439  no improve (3/5)  [45.9s]
+epoch   9/40  train 0.7398  val_tf 0.9901  val_free 1.2716  no improve (4/5)  [46.6s]
+epoch  10/40  train 0.7661  val_tf 0.9095  val_free 1.2372  no improve (5/5)  [51.3s]
+early stopping: no val_rmse_free improvement in 5 epochs
+
+done. best val_rmse_free = 0.8249 yards (checkpoints/best.pt)
