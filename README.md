@@ -1,51 +1,54 @@
 # BDB 2026 Trajectory Prediction
 
 Predicts where NFL players will be, frame by frame, between the moment a pass is
-thrown and the moment it arrives — using pre-throw player tracking data from the
+thrown and the moment it's caught (or hits the ground). Uses pre-throw player
+tracking data from the
 [NFL Big Data Bowl 2026 - Prediction](https://www.kaggle.com/competitions/nfl-big-data-bowl-2026-prediction)
 competition. Built with Claude Code under my direction.
 
-Given tracking data up to the throw — every player's position, speed, and
-orientation, plus where the ball is targeted to land — the model predicts the
-targeted receiver's and relevant defenders' positions for every frame until the ball
-arrives. Both the input window (time before the throw) and output window (time the
-ball is in the air) vary play to play, making this a variable-length
-sequence-to-sequence problem.
+The model gets tracking data up through the throw: every player's position, speed,
+orientation, and where the ball is targeted to land. From that it predicts the
+targeted receiver's and relevant defenders' positions for each remaining frame until
+the ball arrives. The tricky part is that both windows are variable length. Some
+plays have long pre-snap motion, some throws hang in the air for three seconds and
+some for barely half a second. So this ends up being a variable-length
+sequence-to-sequence problem, not a fixed-size regression.
 
 ## Pipeline
 
-**Data prep** (`scripts/stage0_preprocess.py`)
-- Standardizes play direction so the offense always moves the same way (mirrors
-  x-coordinates and motion angles for plays running the other direction)
-- Converts motion/orientation angles to sin/cos to avoid the 0°/360° wraparound
-- Computes features relative to the ball's landing spot and the line of scrimmage
-- Truncates/pads variable-length sequences to a consistent shape per batch
+### Data prep (`scripts/stage0_preprocess.py`)
+Standardizes play direction so the offense always moves the same way on screen
+(mirrors x-coordinates and motion angles for plays running the other direction).
+Motion and orientation angles get converted to sin/cos so the model doesn't see a
+fake jump between 359° and 0°. Also computes features relative to the ball's landing
+spot and the line of scrimmage, and truncates/pads the variable-length sequences to
+a consistent shape per batch.
 
-**Normalization** (`src/normalization.py`)
-- Z-score stats computed on the training split only
-- Tested round trip back to real field coordinates for interpreting predictions
+### Normalization (`src/normalization.py`)
+Z-score stats, computed on the training split only. Includes a tested round trip
+back to real field coordinates so predictions can actually be interpreted, not just
+compared in normalized space.
 
-**Model** (`src/encoder.py`, `src/context_pool.py`, `src/decoder.py`)
-- Encoder–decoder LSTM
-- Encoder reads each play's pre-throw window: the target player's own motion, plus a
-  pooled (mean/max) summary of every other player on the field
-- Decoder runs autoregressively, predicting a position displacement per frame and
-  summing from the player's last known position
+### Model (`src/encoder.py`, `src/context_pool.py`, `src/decoder.py`)
+An encoder-decoder LSTM. The encoder reads each play's pre-throw window: the target
+player's own motion plus a pooled (mean/max) summary of everyone else on the field.
+The decoder then runs autoregressively, predicting a position displacement for each
+output frame and summing those onto the player's last known position.
 
-**Training** (`scripts/train.py`)
-- Adam, gradient clipping, GPU-accelerated
-- Validation computed two ways each epoch: teacher-forced (sees the true previous
-  position) and free-running (feeds its own predictions forward, matching real
-  inference conditions). Checkpointing and early stopping are driven by the
-  free-running number.
+### Training (`scripts/train.py`)
+Adam optimizer, gradient clipping, GPU-accelerated. Validation runs two ways each
+epoch: teacher-forced (the model sees the true previous position) and free-running
+(it feeds its own predictions forward, which is what actually happens at inference).
+Checkpointing and early stopping are based on the free-running number, since that's
+the one that reflects real performance.
 
-**Baselines** (`src/baselines.py`)
-- Stay-put and constant-velocity reference predictors
+### Baselines (`src/baselines.py`)
+Stay-put and constant-velocity predictors, just to have something to beat.
 
 ## Results
 
-RMSE in yards between predicted and true (x, y) position, matching the
-competition's own scoring formula:
+RMSE in yards between predicted and true (x, y) position, using the same formula
+the competition scores submissions with:
 
 | predictor | validation RMSE (yards) |
 |---|---|
@@ -53,31 +56,34 @@ competition's own scoring formula:
 | constant velocity | 1.65 |
 | **this model** | **0.82** |
 
-Roughly half the error of the constant-velocity baseline, on validation weeks
-(17–18 of the 2023 season) held out from training. Training stopped early at epoch
-10 of a possible 40, once validation performance stopped improving.
+About half the error of the constant-velocity baseline, evaluated on validation
+weeks (17-18 of the 2023 season) that the model never trained on. Training stopped
+early at epoch 10 of a possible 40 once validation performance plateaued.
 
 ## Next steps
 
-- **Scheduled sampling** — the model is trained teacher-forced but must run
-  free-running at inference; free-running validation RMSE is noisier and improves
-  for fewer epochs than the teacher-forced number, a classic exposure-bias signature.
-- **Learned player-context aggregation** — replace mean/max pooling with something
-  that learns which other players matter most (e.g. attention).
-- **Error breakdown by play type / player role** to find where the model struggles.
+- **Scheduled sampling.** The model trains teacher-forced but has to run
+  free-running at inference. Free-running validation RMSE is noisier and stops
+  improving sooner than the teacher-forced number, which is a pretty textbook sign
+  of exposure bias.
+- **A smarter way to combine player context.** Mean/max pooling is simple and it
+  works, but something like attention could let the model actually learn which
+  other players on the field matter most for a given prediction.
+- **Break down errors by play type and player role** to see where the model is
+  actually struggling instead of just looking at the aggregate number.
 
 ## Project layout
 
 ```
 scripts/    one script per pipeline step (data prep, baselines, training, verification)
 src/        model and data code the scripts import
-data/       not tracked in git — see Data below
-checkpoints/, results/   training outputs (checkpoints not tracked; logs are)
+data/       not tracked in git, see Data below
+checkpoints/, results/   training outputs (checkpoints not tracked, logs are)
 ```
 
 ## Data
 
-`data/` is git-ignored. To reproduce: download the
+`data/` is git-ignored. To reproduce, download the
 [competition data](https://www.kaggle.com/competitions/nfl-big-data-bowl-2026-prediction/data)
 from Kaggle into `data/train/`, then run `scripts/stage0_preprocess.py` followed by
 `scripts/compute_norm_stats.py`.
@@ -95,5 +101,5 @@ pip install torch==2.14.0+cu126 --index-url https://download.pytorch.org/whl/cu1
 pip install -r requirements.txt
 ```
 
-See `requirements.txt` for a note on picking the right torch build for your own
-hardware — the pin above is specific to the machine this was developed on.
+Check `requirements.txt` for a note on picking the right torch build for your own
+hardware. The pin above is specific to the machine this was developed on.
