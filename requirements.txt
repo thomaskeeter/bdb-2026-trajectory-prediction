@@ -1,6 +1,17 @@
-# torch below is the CPU-only build. On Linux, install it first with:
-#   pip install torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu
-# otherwise pip pulls the default (CUDA) build. Then: pip install -r requirements.txt
+# torch below is pinned to the CUDA 12.6 build (torch==2.14.0+cu126), matched to this
+# machine's NVIDIA driver (566.24, max supported CUDA runtime 12.7 per `nvidia-smi`) and
+# GPU (RTX 4070 Laptop, compute capability 8.9). As of this pin, torch 2.14.0's only
+# published Windows CUDA wheels are cu126 and cu130; cu130 needs CUDA 13.0, which this
+# driver does not support, so cu126 is correct here, not just the default choice.
+# Install it explicitly with the matching index (plain `pip install -r requirements.txt`
+# will NOT pull the +cu126 build on its own -- pip does not fetch local-version-suffixed
+# wheels like +cu126 without being pointed at that specific index):
+#   pip install torch==2.14.0+cu126 --index-url https://download.pytorch.org/whl/cu126
+# Then: pip install -r requirements.txt for the rest.
+# On a machine with a different driver/GPU (or none), check what's actually available and
+# compatible rather than reusing this pin -- see https://download.pytorch.org/whl/torch/
+# for the full index, or use the CPU build: pip install torch==2.14.0 --index-url
+# https://download.pytorch.org/whl/cpu
 numpy==2.5.3
 pandas==3.0.5
-torch==2.14.0
+torch==2.14.0+cu126
